@@ -1,0 +1,34 @@
+<launch>
+  <!-- Temporary debug launch: runs pointlio_mapping under gdb (batch) and writes backtrace to /home/amov/laserMapping_gdb.txt -->
+<launch>
+  <!-- Temporary debug launch: runs pointlio_mapping under gdb (batch) and writes backtrace to /home/amov/laserMapping_gdb.txt -->
+
+  <!-- Ensure topics and params expected by the node -->
+  <param name="common/lid_topic" value="/unilidar/cloud"/>
+  <param name="common/imu_topic" value="/unilidar/imu"/>
+
+  <node name="laserMapping" pkg="point_lio_unilidar" type="pointlio_mapping" output="screen"
+        launch-prefix="bash -lc 'gdb --batch -ex \"run\" -ex \"bt full\" -ex \"thread apply all bt full\" --args > /home/amov/laserMapping_gdb.txt 2>&amp;1'">
+    <!-- private params expected by the node -->
+    <param name="preprocess/lidar_type" value="5"/>
+    <!-- Provide safe default extrinsics (override if you need different values) -->
+    <param name="mapping/extrinsic_T" value="[0.0, 0.0, 0.0]"/>
+    <param name="mapping/extrinsic_R" value="[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]"/>
+  <launch>
+    <!-- Temporary debug launch: runs pointlio_mapping under gdb (batch) and writes backtrace to /home/amov/laserMapping_gdb.txt -->
+
+    <!-- Ensure topics and params expected by the node -->
+    <param name="common/lid_topic" value="/unilidar/cloud"/>
+    <param name="common/imu_topic" value="/unilidar/imu"/>
+
+    <node name="laserMapping" pkg="point_lio_unilidar" type="pointlio_mapping" output="screen"
+          launch-prefix="bash -lc 'gdb --batch -ex \"run\" -ex \"bt full\" -ex \"thread apply all bt full\" --args > /home/amov/laserMapping_gdb.txt 2>&amp;1'">
+      <!-- private params expected by the node -->
+      <param name="preprocess/lidar_type" value="5"/>
+      <!-- Provide safe default extrinsics (override if you need different values) -->
+      <param name="mapping/extrinsic_T" value="[0.0, 0.0, 0.0]"/>
+      <param name="mapping/extrinsic_R" value="[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]"/>
+    </node>
+
+  </launch>
+

@@ -1,0 +1,24 @@
+<launch>
+  <!-- Temporary debug launch (fixed): runs pointlio_mapping under gdb (batch) and writes backtrace to /home/amov/laserMapping_gdb.txt -->
+
+  <!-- Ensure topics and params expected by the node -->
+  <param name="common/lid_topic" value="/unilidar/cloud"/>
+  <param name="common/imu_topic" value="/unilidar/imu"/>
+
+  <!--
+    launch-prefix runs the node under gdb in batch mode. roslaunch will append the
+    node executable and its arguments after the prefix, so gdb will receive them
+    via --args. The redirection to /home/amov/laserMapping_gdb.txt is performed
+    inside the shell command; ampersand is escaped as &amp; in XML.
+  -->
+  <node name="laserMapping_dbg" pkg="point_lio_unilidar" type="pointlio_mapping" output="screen"
+        launch-prefix="bash -lc 'gdb --batch -ex \"run\" -ex \"bt full\" -ex \"thread apply all bt full\" --args > /home/amov/laserMapping_gdb.txt 2>&amp;1'">
+    <!-- private params expected by the node -->
+    <param name="preprocess/lidar_type" value="5"/>
+    <!-- Provide safe default extrinsics (override if you need different values) -->
+    <param name="mapping/extrinsic_T" value="[0.0, 0.0, 0.0]"/>
+    <param name="mapping/extrinsic_R" value="[1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0]"/>
+  </node>
+
+</launch>
+

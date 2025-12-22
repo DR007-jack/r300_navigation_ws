@@ -1,0 +1,69 @@
+# Global params for bringup
+
+## -----------------------
+# Unitree / Unilidar driver (global namespace used by node)
+## -----------------------
+/unitree_lidar_ros_node:
+  # publish LaserScan on /unilidar/laserscan to match move_base/amcl defaults
+  laserscan_topic: /unilidar/laserscan
+  laserscan_frame: unilidar_lidar
+  # Also publish pointcloud on /unilidar/cloud (keep if you need pointcloud-based costmaps)
+  cloud_topic: /unilidar/cloud
+  cloud_frame: unilidar_lidar
+  imu_topic: /unilidar/imu
+  imu_frame: unilidar_imu
+  # initialize_type: 1 for serial, 2 for udp (adjust as your hardware requires)
+  # Use UDP/network mode since your lidar is connected via the enx... interface
+  initialize_type: 2
+  # UDP/network settings - set to your lidar and PC IPs on the enx68... interface
+  lidar_ip: 192.168.1.62
+  pc_ip: 192.168.1.2
+  lidar_port: 6101
+  pc_port: 6201
+  baudrate: 4000000
+  # Reduce TF noise: this driver publishes high-rate TF for IMU/LiDAR.
+  # Navigation only needs base_link -> unilidar_lidar (provided by static_transform_publisher).
+  # If the driver supports this flag, disable its TF broadcasting.
+  publish_tf: false
+
+## -----------------------
+# Example move_base / costmap partial params (copy into your move_base/local_costmap yaml as needed)
+## -----------------------
+move_base:
+  global_costmap:
+    global_frame: map
+    robot_base_frame: base_link
+    update_frequency: 5.0
+    publish_frequency: 2.0
+    static_map: true
+    observation_sources: scan_sensor
+    scan_sensor: {sensor_frame: unilidar_lidar, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
+
+  local_costmap:
+    global_frame: odom
+    robot_base_frame: base_link
+    update_frequency: 5.0
+    publish_frequency: 2.0
+    rolling_window: true
+    width: 6.0
+    height: 6.0
+    resolution: 0.05
+    observation_sources: scan_sensor
+    scan_sensor: {sensor_frame: unilidar_lidar, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
+
+## -----------------------
+# AMCL example overrides
+## -----------------------
+amcl:
+  scan_topic: /scan
+  odom_topic: /odom
+  # AMCL uses *_frame_id parameter names
+  odom_frame_id: odom
+  base_frame_id: base_link
+  global_frame_id: map
+  tf_broadcast: true
+
+# Notes:
+# - Adjust the static transform values in the launch file to match the physical mounting of the lidar.
+# - If you prefer the driver to publish on /unilidar/laserscan, remove the remap and set the move_base/amcl to use that topic.
+

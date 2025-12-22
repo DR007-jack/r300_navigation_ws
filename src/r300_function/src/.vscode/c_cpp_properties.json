@@ -1,0 +1,39 @@
+{
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "",
+                "limitSymbolsToIncludedHeaders": true
+            },
+            "includePath": [
+                "/home/amov/amovcar/devel/include/**",
+                "/home/amov/Prometheus/devel/include/**",
+                "/home/amov/catkin_ws/devel/include/**",
+                "/opt/ros/melodic/include/**",
+                "/home/amov/amovcar/src/common/function/amovcar_function/include/**",
+                "/home/amov/amovcar/src/common/sensor/amovcar_sensor/include/**",
+                "/home/amov/formation_ws/src/formation/include/**",
+                "/home/amov/Prometheus/Simulator/gazebo_simulator/include/**",
+                "/home/amov/Prometheus/Modules/ground_station/include/**",
+                "/home/amov/catkin_ws/src/px4_command/include/**",
+                "/home/amov/amovcar/src/R200/r200_bringup/include/**",
+                "/home/amov/amovcar/src/R200/r200_function/include/**",
+                "/home/amov/amovcar/src/R200/r200_simulation/include/**",
+                "/home/amov/amovcar/src/common/sensor/realsense-ros/realsense2_camera/include/**",
+                "/home/amov/amovcar/src/S100/s100_bringup/include/**",
+                "/home/amov/amovcar/src/S100/s100_function/include/**",
+                "/home/amov/amovcar/src/S100/s100_simulation/include/**",
+                "/home/amov/amovcar/src/S100/scout_mini_ros/scout_base/include/**",
+                "/home/amov/amovcar/src/S100/scout_mini_ros/scout_gazebo_sim/include/**",
+                "/home/amov/amovcar/src/S100/scout_mini_ros/scout_sdk/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/opt/gcc-arm-none-eabi-6-2017-q2-update/bin/arm-none-eabi-gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "gnu++14"
+        }
+    ],
+    "version": 4
+}

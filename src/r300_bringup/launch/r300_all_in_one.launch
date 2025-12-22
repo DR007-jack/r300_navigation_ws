@@ -1,0 +1,126 @@
+<launch>
+  <!--
+    One-command bringup for Scout/R300 + Unitree LiDAR + Navigation (map_server + AMCL + move_base + RViz).
+
+    Why this file exists:
+    - Avoids "new node registered with same name" by starting each component exactly once.
+    - Ensures LaserScan is available on /scan (via scan_topic_bridge) for AMCL/costmaps.
+    - Uses the TF chain: map -> odom -> base_link -> unilidar_lidar.
+
+    Usage:
+      roslaunch r300_bringup r300_all_in_one.launch map_file:=/abs/path/to/map.yaml
+  -->
+
+  <!-- Map yaml produced by map_server (must exist) -->
+  <arg name="map_file" default="$(find r300_function)/maps/r300_map.yaml" />
+
+  <!-- Hardware toggles -->
+  <arg name="start_base" default="true" />
+  <arg name="start_unitree_lidar" default="true" />
+
+  <!-- TF: base_link -> unilidar_lidar (edit xyz/rpy to match your installation) -->
+  <arg name="lidar_x" default="0.20" />
+  <arg name="lidar_y" default="0.00" />
+  <arg name="lidar_z" default="0.30" />
+  <arg name="lidar_roll" default="0.0" />
+  <arg name="lidar_pitch" default="0.0" />
+  <arg name="lidar_yaw" default="0.0" />
+
+  <!-- Candidate scan topics, first match wins. Prefer absolute names. -->
+  <arg name="candidate_scan_topics" default="/scan /unilidar/laserscan unilidar/laserscan unitree_lidar/scan /unitree_lidar/scan" />
+
+  <!-- Optional: keep AMCL updating when robot is stationary -->
+  <arg name="enable_nomotion_update" default="true" />
+  <arg name="nomotion_update_rate" default="1.0" />
+
+  <!-- Optional: auto-set an initial pose for AMCL (avoid needing RViz 2D Pose Estimate every boot) -->
+  <arg name="enable_auto_initialpose" default="true" />
+  <arg name="initial_x" default="0.0" />
+  <arg name="initial_y" default="0.0" />
+  <!-- yaw in radians -->
+  <arg name="initial_yaw" default="0.0" />
+
+  <!-- Common params (includes /unitree_lidar_ros_node/* when used by our own driver node) -->
+  <rosparam file="$(find r300_bringup)/config/bringup_params.yaml" command="load" />
+
+  <!-- Base (Scout/R300). This repository already uses scout_base_node directly in bringup.launch, keep same. -->
+  <group if="$(arg start_base)">
+    <node pkg="scout_base" type="scout_base_node" name="scout_odom" output="screen">
+      <param name="port_name" value="can0" />
+      <param name="is_scout_mini" value="false" />
+      <param name="is_scout_omni" value="false" />
+      <param name="simulated_robot" value="false" />
+      <param name="control_rate" value="50" />
+      <param name="odom_frame" value="odom" />
+      <param name="base_frame" value="base_link" />
+      <param name="odom_topic_name" value="/odom" />
+      <param name="pub_tf" value="true" />
+    </node>
+  </group>
+
+  <!-- Unitree/Unilidar lidar driver. Use the vendor launch so it loads its own config.yaml. -->
+  <group if="$(arg start_unitree_lidar)">
+    <include file="$(find unitree_lidar_ros)/launch/run_without_rviz.launch" />
+  </group>
+
+  <!-- Static TF base_link -> unilidar_lidar -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_to_base"
+        args="$(arg lidar_x) $(arg lidar_y) $(arg lidar_z) $(arg lidar_roll) $(arg lidar_pitch) $(arg lidar_yaw) base_link unilidar_lidar 100" />
+
+  <!-- Normalize scan to /scan -->
+  <node pkg="r300_bringup" type="scan_topic_bridge.py" name="scan_topic_bridge" output="screen" cwd="node">
+    <param name="input_topics" value="$(arg candidate_scan_topics)"/>
+    <param name="output_topic" value="/scan"/>
+    <param name="queue_size" value="10"/>
+  </node>
+
+  <!-- Map server -->
+  <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(arg map_file)" />
+
+  <!-- AMCL -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <rosparam file="$(find r300_bringup)/config/amcl_params.yaml" command="load"/>
+    <!-- Force topic to /scan (bridge output); frame names match our TF chain -->
+    <param name="odom_frame_id" value="odom" />
+    <param name="base_frame_id" value="base_link" />
+    <param name="global_frame_id" value="map" />
+    <param name="scan_topic" value="/scan" />
+  </node>
+
+  <group if="$(arg enable_auto_initialpose)">
+    <node pkg="r300_bringup" type="amcl_auto_initialpose.py" name="amcl_auto_initialpose" output="screen">
+      <param name="x" value="$(arg initial_x)" />
+      <param name="y" value="$(arg initial_y)" />
+      <param name="yaw" value="$(arg initial_yaw)" />
+      <param name="frame_id" value="map" />
+      <param name="topic" value="/initialpose" />
+      <param name="scan_topic" value="/scan" />
+      <param name="wait_for_scan" value="true" />
+      <param name="wait_timeout" value="30.0" />
+    </node>
+  </group>
+
+  <group if="$(arg enable_nomotion_update)">
+    <node pkg="r300_bringup" type="amcl_nomotion_update.py" name="amcl_nomotion_update" output="screen">
+      <param name="service" value="/request_nomotion_update" />
+      <param name="rate" value="$(arg nomotion_update_rate)" />
+      <param name="wait_timeout" value="30.0" />
+    </node>
+  </group>
+
+  <!-- move_base (wait for /scan and TF to become ready; replaces brittle sleep) -->
+  <include file="$(find r300_bringup)/launch/_move_base_wrapper.launch">
+    <arg name="scan_topic" value="/scan" />
+    <arg name="wait_for_scan" value="true" />
+    <arg name="wait_for_scan_timeout" value="30.0" />
+
+    <arg name="wait_for_tf" value="false" />
+    <arg name="tf_pairs" value="map:odom odom:base_link base_link:unilidar_lidar" />
+    <arg name="wait_for_tf_timeout" value="30.0" />
+  </include>
+
+  <!-- RViz (optional) -->
+  <node pkg="rviz" type="rviz" name="rviz" output="screen" required="false" />
+
+</launch>
+

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- 单独启动 laserMapping 节点，用于重启与调试（依赖 point_lio_unilidar 配置文件和已运行的 driver） -->
+  <!-- 单节点启动：把外参加载到节点私有命名空间，保证 node 使用 ros::NodeHandle("~") 能读取到参数 -->
+  <node pkg="point_lio_unilidar" type="pointlio_mapping" name="laserMapping" output="screen">
+    <!-- Load extrinsic params into the node's private namespace -->
+    <rosparam command="load" file="$(find point_lio_unilidar)/config/pointlio_extrinsics.yaml" />
+    <!-- 与 full launch 中相同的参数 -->
+    <param name="common/lid_topic" value="/unilidar/cloud" />
+    <!-- Ensure preprocess knows this is a Unilidar device (enum UNILIDAR == 5) -->
+    <param name="preprocess/lidar_type" value="5" />
+    <param name="common/imu_topic" value="/unilidar/imu" />
+    <param name="mapping/imu_en" value="true" />
+  </node>
+</launch>
+

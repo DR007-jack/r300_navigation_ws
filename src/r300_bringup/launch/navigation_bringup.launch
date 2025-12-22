@@ -1,0 +1,47 @@
+<launch>
+  <!--
+    Wrapper launch for normalizing LaserScan topic names and starting
+    the navigation stack (AMCL + move_base) using existing r300_function
+    launch files.
+
+    Usage example:
+      roslaunch r300_bringup navigation_bringup.launch map_file:=/path/to/map.yaml
+
+    Notes:
+    - The bridge republishes whichever LaserScan messages it receives from the
+      `input_topics` list to the canonical `/scan` topic. Many existing
+      configs/costmaps expect `/scan`.
+    - You can override the candidate list with the `input_topics` param.
+  -->
+
+  <!-- Default to a map shipped with this repo for better portability -->
+  <arg name="map_file" default="$(find r300_function)/maps/r300_map.yaml" />
+
+  <!-- Optional: start Unitree lidar driver (publishes LaserScan/PointCloud2) -->
+  <arg name="start_unitree_lidar" default="false" />
+  <arg name="unitree_lidar_launch" default="$(find unitree_lidar_ros)/launch/run_without_rviz.launch" />
+
+  <!-- space-separated candidate topics; can also be provided as a YAML list param -->
+  <!-- Prefer absolute names first to avoid namespace surprises. -->
+  <arg name="candidate_scan_topics" default="/scan /unilidar/laserscan unilidar/laserscan unitree_lidar/scan /unitree_lidar/scan"/>
+
+  <group if="$(arg start_unitree_lidar)">
+    <include file="$(arg unitree_lidar_launch)" />
+  </group>
+
+  <node pkg="r300_bringup" type="scan_topic_bridge.py" name="scan_topic_bridge" output="screen" cwd="node">
+    <param name="input_topics" value="$(arg candidate_scan_topics)"/>
+    <param name="output_topic" value="/scan"/>
+    <param name="queue_size" value="10"/>
+  </node>
+
+  <!-- Start the navigation pipeline (this launch includes move_base, amcl, rviz per r300_function) -->
+  <include file="$(find r300_function)/launch/r300_navigation_indoor.launch">
+    <!-- force move_base/amcl to use /scan -->
+    <arg name="scan_topic" value="/scan" />
+    <arg name="map_file" value="$(arg map_file)" />
+  </include>
+
+</launch>
+
+

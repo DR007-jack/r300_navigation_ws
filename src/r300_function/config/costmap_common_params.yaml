@@ -1,0 +1,20 @@
+#障碍物最大范围
+obstacle_range: 5.5
+#自由空间最大范围
+raytrace_range: 8
+#机器人占用面积
+footprint: [[0.3, 0.3], [-0.3, 0.3], [-0.3, -0.3], [0.3, -0.3]]
+#障碍物膨胀系数
+inflation_radius: 0.6
+cost_scaling_factor: 3.0
+
+map_type: costmap
+observation_sources: scan
+
+scan: {sensor_frame: base_link, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
+
+# NOTE: 如果现场没有 RealSense D435i（d435i_link 与 /d435i/depth/color/points 不存在），
+# 这个 source 会导致 costmap 反复等待 TF/订阅超时，干扰排障。
+# 先注释掉，等导航闭环跑通后再按实际传感器恢复或替换为 Unitree L2 的点云。
+# pointcloud: {sensor_frame: d435i_link, data_type: PointCloud2, topic: /d435i/depth/color/points, marking: true, clearing: true}
+

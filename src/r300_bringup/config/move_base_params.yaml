@@ -1,0 +1,46 @@
+# move_base and costmap example parameters for r300 bringup
+
+controller_frequency: 10.0
+planner_frequency: 1.0
+
+global_costmap:
+  global_frame: map
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 2.0
+  static_map: true
+  transform_tolerance: 1.5
+  rolling_window: false
+  observation_sources: scan_sensor
+  scan_sensor: {sensor_frame: unilidar_lidar, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
+
+local_costmap:
+  global_frame: odom
+  robot_base_frame: base_link
+  update_frequency: 5.0
+  publish_frequency: 2.0
+  transform_tolerance: 1.5
+  rolling_window: true
+  width: 6.0
+  height: 6.0
+  resolution: 0.05
+  observation_sources: scan_sensor
+  scan_sensor: {sensor_frame: unilidar_lidar, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
+
+base_global_planner: "navfn/NavfnROS"
+base_local_planner: "dwa_local_planner/DWAPlannerROS"
+
+DWAPlannerROS:
+  max_vel_x: 0.8
+  min_vel_x: 0.0
+  max_rot_vel: 1.0
+  min_rot_vel: 0.4
+  acc_lim_x: 0.5
+  acc_lim_theta: 1.0
+  yaw_goal_tolerance: 0.1
+  xy_goal_tolerance: 0.2
+  sim_time: 1.7
+  path_distance_bias: 32.0
+  goal_distance_bias: 24.0
+  occdist_scale: 0.01
+

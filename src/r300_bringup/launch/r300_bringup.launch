@@ -1,0 +1,24 @@
+<launch>
+
+    <!--scout mini 底盘参数配置（无冗余参数，标签完整）-->
+    <arg name="port_name" value="can0" />
+    <arg name="simulated_robot" value="false" />
+    <arg name="odom_topic_name" default="odom" />
+   <arg name="is_scout_mini" default="true" />  <!-- 修复：将/&gt;改为/，标签闭合正常 -->
+
+    <!-- 引用scout_base.launch，参数传递匹配 -->
+    <include file="$(find scout_base)/launch/scout_base.launch">
+        <arg name="port_name" default="$(arg port_name)" />
+       <arg name="simulated_robot" default="$(arg simulated_robot)" /><arg name="odom_topic_name" default="$(arg odom_topic_name)" />
+<arg name="is_scout_mini" default="$(arg is_scout_mini)" />
+    </include>
+
+    <!--gazebo模型加载（保留原有功能，标签无错误）-->
+    <arg name="model" default="$(find xacro)/xacro --inorder '$(find r300_simulation)/models/r300_2dlidar.xacro'"/>
+    <param name="robot_description" command="$(arg model)"/>
+    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen" args="-urdf -model r300 -param robot_description"/>
+
+    <!--机器人状态发布（标签闭合完整）-->
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+</launch>

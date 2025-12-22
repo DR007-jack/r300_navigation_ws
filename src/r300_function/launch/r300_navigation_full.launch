@@ -1,0 +1,36 @@
+<launch>
+    
+
+    <!-- 2. 启动雷达驱动（UDP模式） -->
+    <include file="$(find unitree_lidar_ros)/launch/run_without_rviz.launch" />
+
+    <!-- 3. 启动激光里程计（point_lio_unilidar） -->
+    <node pkg="point_lio_unilidar" type="laserMapping" name="laserMapping" output="screen">
+        <!-- 重映射雷达点云/IMU话题（匹配unitree雷达） -->
+        <param name="common/lid_topic" value="/unilidar/cloud" />
+        <param name="common/imu_topic" value="/unilidar/imu" />
+        <!-- 其他参数保持默认 -->
+    </node>
+
+    <!-- 4. 启动里程计桥接节点（修复帧/话题匹配） -->
+    <node pkg="r300_function" type="odom_bridge_node" name="odom_bridge_node" output="screen">
+        <param name="target_frame" value="odom" />
+        <param name="child_frame" value="base_link" />
+    </node>
+
+    <!-- 5. 启动move_base（重映射odom话题为修正后的/odom） -->
+    <include file="$(find r300_function)/launch/move_base.launch">
+        <arg name="odom_topic" value="/odom" />
+        <arg name="cmd_vel_topic" value="/cmd_vel" />
+    </include>
+
+    <!-- 6. 启动速度桥接（适配MAVROS） -->
+    <node pkg="r300_function" type="vel_bridge" name="vel_bridge_node" output="screen" />
+
+    <!-- 7. 手动发布map→odom静态TF（测试用，AMCL正常后可注释） -->
+    <node pkg="tf" type="static_transform_publisher" name="map_odom_tf"
+          args="0 0 0 0 0 0 map odom 100" />
+
+    <!-- 8. 启动RViz（可选，可视化用） -->
+    <node pkg="rviz" type="rviz" name="rviz" args="-d $(find r300_function)/config/r300_nav.rviz" />
+</launch>

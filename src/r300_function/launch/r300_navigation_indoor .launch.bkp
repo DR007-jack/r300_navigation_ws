@@ -1,0 +1,62 @@
+<launch>
+    <!-- 1. 定义启动参数 -->
+    <arg name="open_rviz" default="true"/>
+    <arg name="move_forward_only" default="false"/>
+    <arg name="scan_topic" default="/scan"/>
+    <arg name="map_file" default="/home/amov/navigation_test_ws/R300/r300_simulation/maps/map.yaml"/>
+
+    <!-- 2. 唯一启动 map_server（核心：全流程只启动一次） -->
+    <node pkg="map_server" type="map_server" name="map_server" args="$(arg map_file)"/>
+
+    <!-- 3. AMCL 定位节点（无参数冲突） -->
+    <node pkg="amcl" type="amcl" name="amcl">
+        <param name="min_particles"             value="500"/>
+        <param name="max_particles"             value="3000"/>
+        <param name="kld_err"                   value="0.02"/>
+        <param name="kld_z"                     value="0.99"/>
+        <param name="update_min_d"              value="0.20"/>
+        <param name="update_min_a"              value="0.20"/>
+        <param name="resample_intterval"        value="1"/>
+        <param name="transform_tolerance"       value="0.5"/>
+        <param name="recovery_alpha_slow"       value="0.00"/>
+        <param name="recovery_alpha_fast"       value="0.00"/>
+        
+        <param name="initial_pose_x"            value="0.0"/>
+        <param name="initial_pose_y"            value="0.0"/>
+        <param name="initial_pose_a"            value="0.0"/>
+        <param name="gui_publish_rate"          value="50.0"/>
+        
+        <remap from="scan"                      to="$(arg scan_topic)"/>
+        <param name="laser_max_range"           value="5.0"/>
+        <param name="laser_max_beams"           value="180"/>
+        <param name="laser_z_hit"               value="0.5"/>
+        <param name="laser_z_short"             value="0.05"/>
+        <param name="laser_z_max"               value="0.05"/>
+        <param name="laser_z_rand"              value="0.5"/>
+        <param name="laser_sigma_hit"           value="0.2"/>
+        <param name="laser_lambda_short"        value="0.1"/>
+        <param name="laser_likelihood_max_dist" value="2.0"/>
+        <param name="laser_model_type"          value="likelihood_field"/>
+        
+        <param name="odom_model_type"           value="diff"/>
+        <param name="odom_alpha1"               value="0.1"/>
+        <param name="odom_alpha2"               value="0.1"/>
+        <param name="odom_alpha3"               value="0.1"/>
+        <param name="odom_alpha4"               value="0.1"/>
+        <param name="odom_frame_id"             value="odom"/>
+        <param name="base_frame_id"             value="base_link"/>
+    </node>
+
+    <!-- 4. 启动 move_base（不传递 map_file，不重复启动 map_server） -->
+    <include file="$(find r300_function)/launch/move_base.launch">
+        <arg name="move_forward_only" value="$(arg move_forward_only)"/>
+        <arg name="cmd_vel_topic" default="/cmd_vel" />
+        <arg name="odom_topic" default="odom" />
+    </include>
+
+    <!-- 5. RViz 可视化 -->
+    <group if="$(arg open_rviz)"> 
+        <node pkg="rviz" type="rviz" name="rviz" required="true"
+              args="-d $(find r300_function)/config/r300_navigation.rviz"/>
+    </group>
+</launch>

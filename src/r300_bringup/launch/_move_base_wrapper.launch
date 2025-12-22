@@ -1,0 +1,25 @@
+<launch>
+  <!-- Internal helper: start move_base via a wrapper that waits for prerequisites. -->
+
+  <arg name="scan_topic" default="/scan" />
+  <arg name="wait_for_scan" default="true" />
+  <arg name="wait_for_scan_timeout" default="30.0" />
+
+  <arg name="wait_for_tf" default="false" />
+  <arg name="tf_pairs" default="map:odom odom:base_link base_link:unilidar_lidar" />
+  <arg name="wait_for_tf_timeout" default="30.0" />
+
+  <node pkg="r300_bringup" type="move_base_wait_and_run.py" name="move_base" output="screen" required="false" respawn="true" respawn_delay="2.0">
+    <param name="scan_topic" value="$(arg scan_topic)" />
+    <param name="wait_for_scan" value="$(arg wait_for_scan)" />
+    <param name="wait_for_scan_timeout" value="$(arg wait_for_scan_timeout)" />
+
+    <param name="wait_for_tf" value="$(arg wait_for_tf)" />
+    <param name="tf_pairs" value="$(arg tf_pairs)" />
+    <param name="wait_for_tf_timeout" value="$(arg wait_for_tf_timeout)" />
+
+    <!-- Load move_base params before starting -->
+    <rosparam file="$(find r300_bringup)/config/move_base_params.yaml" command="load"/>
+  </node>
+</launch>
+

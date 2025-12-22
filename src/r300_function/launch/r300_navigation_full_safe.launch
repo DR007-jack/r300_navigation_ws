@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- 1. 启动底盘驱动节点（Scout机器人，配置机器人类型参数） -->
+  <node pkg="scout_base" type="scout_base_node" name="scout_base_node" output="screen">
+    <param name="is_scout_mini" value="false" />  <!-- 根据实际机器人修改：true=Scout Mini，false=普通Scout -->
+    <param name="is_scout_omni" value="false" />  <!-- 根据实际机器人修改：true=Omni全向，false=差速 -->
+    <param name="port_name" value="can0" />
+   <param name="odom_topic_name" value="/odom" />
+    <param name="pub_tf" value="true" />
+  </node>
+
+  <!-- 2. 启动激光雷达节点（禾赛R300，适配雷达驱动） -->
+  <node pkg="unitree_lidar_ros" type="unitree_lidar_ros_node" name="unitree_lidar_ros_node" output="screen">
+    <!-- Load package default UDP/network config then override the R300-specific values below -->
+    <rosparam command="load" file="$(find unitree_lidar_ros)/config/config.yaml" />
+    <!-- Force UDP/network mode and set the R300 IP/port values used on your network.
+         Update device_ip and pc_ip below to match your LiDAR and industrial PC addresses. -->
+    <param name="initialize_type" value="2" />
+    <param name="serial_port" value="" />
+  <param name="lidar_ip" value="192.168.1.62" />  <!-- set this to your R300 IP (updated) -->
+  <param name="lidar_port" value="6101" />       <!-- R300 UDP port (updated to 6101) -->
+  <param name="pc_ip" value="192.168.1.2" />     <!-- industrial PC IP on LiDAR network -->
+  <param name="pc_port" value="6201" />
+    <!-- expose same scan/topic settings as before -->
+    <param name="laserscan_frame" value="base_link" />
+    <param name="laserscan_topic" value="/scan" />
+  </node>
+
+  <!-- 3. 启动 laserMapping（point_lio_unilidar 包） -->
+  <!-- 注意：CMakeLists 中生成的可执行文件名为 pointlio_mapping，
+    roslaunch 要求 type 字段为可执行文件名（不含路径），
+    所以这里使用 pointlio_mapping 来匹配包内可执行文件。 -->
+  <!-- Load SLAM extrinsic parameters (override defaults).
+    Some systems may not have the YAML file available at this path; to avoid
+    roslaunch failing if the file is missing we set safe default params inline.
+    Replace these with real calibration values or add the YAML file and
+    replace these param tags with a rosparam load if you prefer file-based config. -->
+  <node pkg="point_lio_unilidar" type="pointlio_mapping" name="laserMapping" output="screen">
+    <!-- SLAM node uses a private node handle (~) to read mapping/extrinsic_* parameters.
+         Setting these params inside the node block ensures they are available under
+         the node's namespace (e.g. /laserMapping/mapping/extrinsic_T). -->
+  <!-- Load extrinsic params from file into the node's private namespace -->
+  <rosparam command="load" file="$(find point_lio_unilidar)/config/pointlio_extrinsics.yaml" />
+    <!-- End extrinsic defaults -->
+    <!-- 给 laserMapping 传入对应的参数（示例：topic/imu） -->
+    <!-- SLAM expects PointCloud2; unitree driver publishes PointCloud2 on 'unilidar/cloud' -->
+    <param name="common/lid_topic" value="/unilidar/cloud" />
+    <param name="common/imu_topic" value="/unilidar/imu" />
+    <param name="mapping/imu_en" value="true" />
+  </node>
+
+  <!-- 4. 启动智能桥接节点（修正里程计frame+广播TF，禁用apm_navigation避免冲突） -->
+  <node pkg="r300_function" type="intelligent_odom_bridge_node" name="intelligent_odom_bridge_node" output="screen">
+    <param name="input_odom_topic" value="/pointlio/odom" />
+    <param name="output_odom_topic" value="/odom" />
+    <param name="output_header_frame" value="odom" />
+    <param name="output_child_frame" value="base_link" />
+  </node>
+
+  <!-- 5. 启动move_base（重映射odom话题，同步costmap配置） -->
+  <include file="$(find r300_function)/launch/move_base.launch">
+    <arg name="odom_topic" value="/odom" /><!-- 接收桥接后的里程计 -->
+    <arg name="cmd_vel_topic" value="/cmd_vel" />  <!-- 输出控制指令 -->
+  </include>
+
+  <!-- 6. 启动速度桥接（适配底盘控制） --><node pkg="r300_function" type="vel_bridge" name="vel_bridge_node" output="screen" />
+
+  <!-- 7. 测试用：发布map→odom静态TF（AMCL启动后可注释，由AMCL动态发布） -->
+  <node pkg="tf" type="static_transform_publisher" name="map_odom_static"
+        args="0 0 0 0 0 0 map odom 100" />
+
+  <!-- 8. 启动RViz（可视化调试） -->
+ <node pkg="rviz" type="rviz" name="rviz" args="-d $(find r300_function)/config/r300_nav.rviz" />
+</launch>
+

@@ -1,0 +1,51 @@
+<launch>
+
+  <!-- Load common parameters (unitree lidar, move_base/costmap examples) -->
+  <rosparam file="$(find r300_bringup)/config/bringup_params.yaml" command="load"/>
+
+  <!-- Scout base (底盘里程计/控制) -->
+  <node pkg="scout_base" type="scout_base_node" name="scout_odom" output="screen">
+    <!-- Private params for scout_base_node -->
+    <param name="port_name" value="can0" />
+    <param name="is_scout_mini" value="false" />
+    <param name="is_scout_omni" value="false" />
+    <param name="simulated_robot" value="false" />
+    <param name="control_rate" value="50" />
+    <param name="odom_frame" value="odom" />
+    <param name="base_frame" value="base_link" />
+    <param name="odom_topic_name" value="/odom" />
+    <param name="pub_tf" value="true" />
+  </node>
+
+  <!-- Unitree/Unilidar lidar driver -->
+  <node pkg="unitree_lidar_ros" type="unitree_lidar_ros_node" name="unitree_lidar_ros_node" output="screen">
+    <!-- unitree node reads params in global namespace /unitree_lidar_ros_node/... -->
+    <!-- Laserscan will be published on the topic configured in bringup_params.yaml (default: /scan) -->
+  </node>
+
+  <!-- Static transform from base_link to lidar frame (adjust values to match your installation) -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_to_base"
+        args="0.20 0.0 0.30 0 0 0 base_link unilidar_lidar 100"/>
+
+  <!-- Optional components (uncomment when ready) -->
+  <!-- Map server (if you have a map .yaml and .pgm):
+  <include file="$(find map_server)/launch/map_server.launch">
+    <arg name="map" value="$(find your_map_pkg)/maps/map.yaml" />
+  </include>
+  -->
+
+  <!-- AMCL (localize using /scan and /odom). Uncomment and adjust if you have amcl params file. -->
+  <!-- AMCL (localize using /scan and /odom). Load local AMCL params file -->
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+    <rosparam file="$(find r300_bringup)/config/amcl_params.yaml" command="load"/>
+  </node>
+
+  <!-- move_base (navigation). Load move_base and costmap params -->
+  <node pkg="move_base" type="move_base" name="move_base" output="screen">
+    <rosparam file="$(find r300_bringup)/config/move_base_params.yaml" command="load"/>
+    <!-- Remap /scan if driver publishes with a different name (default driver: /unilidar/laserscan) -->
+    <remap from="/scan" to="/unilidar/laserscan"/>
+  </node>
+
+</launch>
+

@@ -1,0 +1,19 @@
+global_costmap:
+  global_frame: map          # 与静态TF的map帧一致
+  robot_base_frame: base_link # 与桥接节点的child_frame一致
+  update_frequency: 5.0
+  publish_frequency: 5.0
+  static_map: true
+  transform_tolerance: 0.5   # 降低容忍度，避免超时
+  obstacle_range: 5.5
+  raytrace_range: 8.0
+  inflation_radius: 0.6
+  cost_scaling_factor: 3.0
+  observation_sources: scan
+  scan:
+    data_type: LaserScan
+    topic: /scan             # 直接使用雷达发布的激光扫描数据
+    marking: true
+    clearing: true
+    sensor_frame: base_link  # 与机器人基帧一致
+
