@@ -1,0 +1,8 @@
+prefix=/home/amov/r300_navigation_ws/install
+
+Name: r300_function
+Description: Description of r300_function
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

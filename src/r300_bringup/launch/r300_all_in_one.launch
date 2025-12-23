@@ -9,10 +9,21 @@
 
     Usage:
       roslaunch r300_bringup r300_all_in_one.launch map_file:=/abs/path/to/map.yaml
+
+    Optional (safety): attempt to clear base faults before bringing up navigation:
+      roslaunch r300_bringup r300_all_in_one.launch auto_clear_base_faults:=true
   -->
 
   <!-- Map yaml produced by map_server (must exist) -->
   <arg name="map_file" default="$(find r300_function)/maps/r300_map.yaml" />
+
+  <!-- RViz -->
+  <arg name="enable_rviz" default="true" />
+  <!-- RViz layout presets: default (bigger screens) / 720p (1280x720) -->
+  <arg name="rviz_profile" default="default" />
+
+  <arg if="$(eval arg('rviz_profile') == '720p')" name="rviz_config" default="$(find r300_bringup)/rviz_cfg/r300_navigation_1280x720.rviz" />
+  <arg unless="$(eval arg('rviz_profile') == '720p')" name="rviz_config" default="$(find r300_bringup)/rviz_cfg/r300_navigation_default.rviz" />
 
   <!-- Hardware toggles -->
   <arg name="start_base" default="true" />
@@ -29,6 +40,32 @@
   <!-- Candidate scan topics, first match wins. Prefer absolute names. -->
   <arg name="candidate_scan_topics" default="/scan /unilidar/laserscan unilidar/laserscan unitree_lidar/scan /unitree_lidar/scan" />
 
+  <!-- Optional relay fallback: directly expose /unilidar/laserscan as /scan.
+    Keep this OFF by default to avoid double-publishing /scan when the
+    scan_topic_bridge is working. -->
+  <arg name="enable_scan_relay_fallback" default="false" />
+
+  <!-- Scan bridge sanitization / workaround knobs -->
+  <arg name="scan_bridge_enable_filter" default="true" />
+  <arg name="scan_bridge_min_range_floor" default="0.05" />
+  <arg name="scan_bridge_drop_invalid_to_inf" default="true" />
+  <arg name="scan_bridge_replace_inf" default="true" />
+  <arg name="scan_bridge_inf_epsilon" default="0.01" />
+  <!-- Workaround for time-sync issues: force outgoing /scan stamp to now -->
+  <arg name="scan_bridge_force_now_stamp" default="true" />
+
+  <!-- If too many beams are invalid, drop the scan (prevents AMCL segfault on dirty data). -->
+  <!-- NOTE: many real sensors will have a lot of invalid beams indoors; keep defaults tolerant. -->
+  <arg name="scan_bridge_min_valid_ratio" default="0.25" />
+  <arg name="scan_bridge_min_valid_beams" default="150" />
+
+  <!-- Scan gating:
+    - require_scan=true: block and FAIL bringup if /scan isn't received in time (strict)
+    - require_scan=false: don't kill bringup when /scan is missing (base stays up; navigation may still wait internally)
+  -->
+  <arg name="require_scan" default="false" />
+  <arg name="scan_gate_timeout" default="60.0" />
+
   <!-- Optional: keep AMCL updating when robot is stationary -->
   <arg name="enable_nomotion_update" default="true" />
   <arg name="nomotion_update_rate" default="1.0" />
@@ -39,6 +76,20 @@
   <arg name="initial_y" default="0.0" />
   <!-- yaw in radians -->
   <arg name="initial_yaw" default="0.0" />
+
+  <!-- Optional (SAFETY): attempt to clear base faults before starting navigation.
+    Default is false. This will NOT bypass E-Stop or hardware lockouts. -->
+  <arg name="auto_clear_base_faults" default="false" />
+  <arg name="auto_clear_base_faults_timeout" default="20.0" />
+
+  <!-- Optional (SAFETY): require remote is in PC/industrial-control mode before continuing.
+       On this platform SWB==0 means PC control, SWB==1 means RC control. -->
+  <arg name="require_pc_control" default="false" />
+  <arg name="pc_control_swb_value" default="0" />
+
+  <!-- AMCL crash guard (some platforms see occasional amcl segfault). -->
+  <arg name="amcl_respawn" default="true" />
+  <arg name="amcl_respawn_delay" default="2.0" />
 
   <!-- Common params (includes /unitree_lidar_ros_node/* when used by our own driver node) -->
   <rosparam file="$(find r300_bringup)/config/bringup_params.yaml" command="load" />
@@ -63,64 +114,111 @@
     <include file="$(find unitree_lidar_ros)/launch/run_without_rviz.launch" />
   </group>
 
-  <!-- Static TF base_link -> unilidar_lidar -->
-  <node pkg="tf" type="static_transform_publisher" name="lidar_to_base"
-        args="$(arg lidar_x) $(arg lidar_y) $(arg lidar_z) $(arg lidar_roll) $(arg lidar_pitch) $(arg lidar_yaw) base_link unilidar_lidar 100" />
+  <!-- Static TF base_link -> unilidar_lidar
+   Use tf2_ros so it publishes latched on /tf_static (better behavior for time sync/extrapolation). -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="lidar_to_base"
+    args="$(arg lidar_x) $(arg lidar_y) $(arg lidar_z) $(arg lidar_roll) $(arg lidar_pitch) $(arg lidar_yaw) base_link unilidar_lidar" />
 
-  <!-- Normalize scan to /scan -->
+  <!-- Normalize scan to /scan
+    IMPORTANT: for this to be launchable as a node, scan_topic_bridge.py must be installed as an
+    executable (catkin_install_python) and have LF line endings + a valid shebang.
+  -->
   <node pkg="r300_bringup" type="scan_topic_bridge.py" name="scan_topic_bridge" output="screen" cwd="node">
     <param name="input_topics" value="$(arg candidate_scan_topics)"/>
     <param name="output_topic" value="/scan"/>
     <param name="queue_size" value="10"/>
+
+    <param name="enable_filter" value="$(arg scan_bridge_enable_filter)" />
+    <param name="min_range_floor" value="$(arg scan_bridge_min_range_floor)" />
+    <param name="drop_invalid_to_inf" value="$(arg scan_bridge_drop_invalid_to_inf)" />
+    <param name="replace_inf" value="$(arg scan_bridge_replace_inf)" />
+    <param name="inf_epsilon" value="$(arg scan_bridge_inf_epsilon)" />
+    <param name="force_now_stamp" value="$(arg scan_bridge_force_now_stamp)" />
+
+    <param name="min_valid_ratio" value="$(arg scan_bridge_min_valid_ratio)" />
+    <param name="min_valid_beams" value="$(arg scan_bridge_min_valid_beams)" />
+    <param name="on_bad_scan" value="republish_last" />
   </node>
 
-  <!-- Map server -->
-  <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(arg map_file)" />
+  <!-- Fallback: if the lidar driver publishes LaserScan on /unilidar/laserscan,
+    expose it directly as /scan so AMCL/move_base can run even if the bridge
+    fails to auto-select an active input. This node does NOT filter values;
+    keep scan_topic_bridge enabled for sanitation when it works. -->
+  <node if="$(arg enable_scan_relay_fallback)" pkg="topic_tools" type="relay" name="scan_relay_fallback" output="screen" args="/unilidar/laserscan /scan"/>
 
-  <!-- AMCL -->
-  <node pkg="amcl" type="amcl" name="amcl" output="screen">
-    <rosparam file="$(find r300_bringup)/config/amcl_params.yaml" command="load"/>
-    <!-- Force topic to /scan (bridge output); frame names match our TF chain -->
-    <param name="odom_frame_id" value="odom" />
-    <param name="base_frame_id" value="base_link" />
-    <param name="global_frame_id" value="map" />
-    <param name="scan_topic" value="/scan" />
+  <!-- Block startup until we have received at least one LaserScan on /scan.
+       This makes AMCL/move_base startup much more reliable when lidar driver is slow. -->
+  <node if="$(arg require_scan)" pkg="r300_bringup" type="wait_for_scan.py" name="wait_for_scan" output="screen" required="true">
+    <param name="topic" value="/scan" />
+    <param name="timeout" value="$(arg scan_gate_timeout)" />
   </node>
 
-  <group if="$(arg enable_auto_initialpose)">
-    <node pkg="r300_bringup" type="amcl_auto_initialpose.py" name="amcl_auto_initialpose" output="screen">
-      <param name="x" value="$(arg initial_x)" />
-      <param name="y" value="$(arg initial_y)" />
-      <param name="yaw" value="$(arg initial_yaw)" />
-      <param name="frame_id" value="map" />
-      <param name="topic" value="/initialpose" />
+  <!-- Optional: block startup until base fault_code clears (or times out). -->
+  <node if="$(arg auto_clear_base_faults)" pkg="r300_bringup" type="auto_clear_faults.py" name="auto_clear_faults" output="screen" required="true">
+    <param name="status_topic" value="/scout_status" />
+    <param name="rs_status_topic" value="/rs_status" />
+    <param name="service" value="/scout/clear_faults" />
+    <param name="timeout" value="$(arg auto_clear_base_faults_timeout)" />
+    <param name="call_retries" value="3" />
+    <param name="call_interval" value="1.0" />
+    <param name="require_pc_control" value="$(arg require_pc_control)" />
+    <param name="pc_control_swb_value" value="$(arg pc_control_swb_value)" />
+  </node>
+
+  <!-- Navigation stack.
+    - In strict mode (require_scan=true), we start navigation only after wait_for_scan gate.
+    - In non-strict mode, we still start navigation, but components will wait internally for /scan. -->
+  <group>
+    <!-- Map server -->
+    <node pkg="map_server" type="map_server" name="map_server" output="screen" args="$(arg map_file)" />
+
+    <!-- AMCL (respawn to avoid bringing down navigation when AMCL segfaults) -->
+    <node pkg="amcl" type="amcl" name="amcl" output="screen" respawn="$(arg amcl_respawn)" respawn_delay="$(arg amcl_respawn_delay)">
+      <rosparam file="$(find r300_bringup)/config/amcl_params.yaml" command="load"/>
+      <!-- Force topic to /scan (bridge output); frame names match our TF chain -->
+      <param name="odom_frame_id" value="odom" />
+      <param name="base_frame_id" value="base_link" />
+      <param name="global_frame_id" value="map" />
       <param name="scan_topic" value="/scan" />
-      <param name="wait_for_scan" value="true" />
-      <param name="wait_timeout" value="30.0" />
     </node>
+
+    <group if="$(arg enable_auto_initialpose)">
+      <node pkg="r300_bringup" type="amcl_auto_initialpose.py" name="amcl_auto_initialpose" output="screen">
+        <param name="x" value="$(arg initial_x)" />
+        <param name="y" value="$(arg initial_y)" />
+        <param name="yaw" value="$(arg initial_yaw)" />
+        <param name="frame_id" value="map" />
+        <param name="topic" value="/initialpose" />
+        <param name="scan_topic" value="/scan" />
+        <param name="wait_for_scan" value="true" />
+        <param name="wait_timeout" value="30.0" />
+      </node>
+    </group>
+
+    <group if="$(arg enable_nomotion_update)">
+      <node pkg="r300_bringup" type="amcl_nomotion_update.py" name="amcl_nomotion_update" output="screen">
+        <param name="service" value="/request_nomotion_update" />
+        <param name="rate" value="$(arg nomotion_update_rate)" />
+        <param name="wait_timeout" value="30.0" />
+      </node>
+    </group>
+
+    <!-- move_base (wait for /scan and TF to become ready; replaces brittle sleep) -->
+    <include file="$(find r300_bringup)/launch/_move_base_wrapper.launch">
+      <arg name="scan_topic" value="/scan" />
+      <arg name="wait_for_scan" value="true" />
+      <arg name="wait_for_scan_timeout" value="30.0" />
+
+      <arg name="wait_for_tf" value="true" />
+      <arg name="tf_pairs" value="map:odom odom:base_link base_link:unilidar_lidar" />
+      <arg name="wait_for_tf_timeout" value="30.0" />
+    </include>
   </group>
-
-  <group if="$(arg enable_nomotion_update)">
-    <node pkg="r300_bringup" type="amcl_nomotion_update.py" name="amcl_nomotion_update" output="screen">
-      <param name="service" value="/request_nomotion_update" />
-      <param name="rate" value="$(arg nomotion_update_rate)" />
-      <param name="wait_timeout" value="30.0" />
-    </node>
-  </group>
-
-  <!-- move_base (wait for /scan and TF to become ready; replaces brittle sleep) -->
-  <include file="$(find r300_bringup)/launch/_move_base_wrapper.launch">
-    <arg name="scan_topic" value="/scan" />
-    <arg name="wait_for_scan" value="true" />
-    <arg name="wait_for_scan_timeout" value="30.0" />
-
-    <arg name="wait_for_tf" value="false" />
-    <arg name="tf_pairs" value="map:odom odom:base_link base_link:unilidar_lidar" />
-    <arg name="wait_for_tf_timeout" value="30.0" />
-  </include>
 
   <!-- RViz (optional) -->
-  <node pkg="rviz" type="rviz" name="rviz" output="screen" required="false" />
+  <node if="$(arg enable_rviz)" pkg="rviz" type="rviz" name="rviz" output="screen" required="false"
+    args="-d $(arg rviz_config)" />
 
 </launch>
+
 

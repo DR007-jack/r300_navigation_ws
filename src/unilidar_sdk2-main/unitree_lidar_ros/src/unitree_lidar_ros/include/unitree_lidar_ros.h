@@ -128,9 +128,26 @@ public:
     // Default to false to avoid flooding /tf and interfering with navigation TF consumers.
     nh.param("/unitree_lidar_ros_node/publish_tf", publish_tf_, false);
 
+    // Safety override: force-disable TF broadcasting regardless of other settings.
+    // Useful for navigation setups that require a clean TF tree.
+    bool force_disable_tf = false;
+    nh.param("/unitree_lidar_ros_node/force_disable_tf", force_disable_tf, false);
+    if (force_disable_tf)
+    {
+        publish_tf_ = false;
+        ROS_WARN("[unitree_lidar_ros_node] force_disable_tf=true -> TF broadcasting forcibly disabled.");
+    }
+
     // If the lidar doesn't provide native 2D packets, we can still create a LaserScan from the 3D point cloud.
     // Default: enabled, because navigation stacks (amcl/move_base) typically require LaserScan.
     nh.param("/unitree_lidar_ros_node/enable_laserscan_fallback", enable_laserscan_fallback_, true);
+
+    ROS_INFO_STREAM("[unitree_lidar_ros_node] publish_tf=" << (publish_tf_ ? "true" : "false")
+                    << ", enable_laserscan_fallback=" << (enable_laserscan_fallback_ ? "true" : "false")
+                    << ", force_disable_tf=" << (force_disable_tf ? "true" : "false"));
+    if (publish_tf_) {
+        ROS_WARN("[unitree_lidar_ros_node] publish_tf is ENABLED. This will broadcast TF on /tf and may conflict with navigation TF.");
+    }
     nh.param("/unitree_lidar_ros_node/laserscan_fallback_num_beams", laserscan_fallback_num_beams_, 720);
     nh.param("/unitree_lidar_ros_node/laserscan_fallback_angle_min", laserscan_fallback_angle_min_, -3.1415926);
     nh.param("/unitree_lidar_ros_node/laserscan_fallback_angle_max", laserscan_fallback_angle_max_,  3.1415926);
@@ -313,8 +330,11 @@ public:
             scan.angle_max = data.angle_min + data.angle_increment * data.point_num;
             scan.angle_increment = data.angle_increment;
             scan.time_increment = data.time_increment;
-            scan.range_min = 0.0;
-            scan.range_max = 100.0;
+            // Respect user parameters for min/max range instead of hard-coded values.
+            // A zero range_min often causes a flood of 0.0 ranges which can destabilize
+            // downstream consumers (AMCL/costmaps). Use the configured thresholds.
+            scan.range_min = static_cast<float>(range_min_);
+            scan.range_max = static_cast<float>(range_max_);
             scan.ranges.resize(data.point_num);
             scan.intensities.resize(data.point_num);
 
@@ -349,3 +369,4 @@ public:
         }
     }
 };
+

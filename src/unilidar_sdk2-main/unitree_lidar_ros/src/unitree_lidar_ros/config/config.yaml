@@ -6,9 +6,24 @@
 initialize_type: 2 # 1-Serial, 2-UDP
 work_mode: 0
 use_system_timestamp: true
-range_min: 0
+range_min: 0.05
 range_max: 100
 cloud_scan_num: 18
+
+# TF
+# Publish TF from this driver only if you really need IMU/LiDAR frame broadcasting.
+# Navigation in this repo uses a separate tf2 static publisher for base_link->unilidar_lidar.
+publish_tf: false
+
+# Extra safety: force TF off regardless of any other setting/legacy code paths.
+# When true, the driver will NOT broadcast TF on /tf.
+force_disable_tf: true
+
+# LaserScan fallback
+# If the device/firmware does not output native 2D packets, enable this to
+# synthesize a LaserScan from the 3D point cloud so AMCL/move_base can run.
+# (scan_topic_bridge will still sanitize and republish as /scan.)
+enable_laserscan_fallback: true
 
 # Serial Port
 serial_port: "/dev/ttyACM0"
@@ -34,3 +49,4 @@ imu_topic: "unilidar/imu"      # default: "unilidar/imu"
 # This avoids needing an extra static TF unilidar_lidar -> unilidar_laserscan.
 laserscan_frame: "unilidar_lidar"
 laserscan_topic: "unilidar/laserscan"
+

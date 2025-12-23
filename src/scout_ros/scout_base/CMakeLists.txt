@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
     roslaunch 
     roscpp 
     sensor_msgs
+  std_srvs
     std_msgs
     geometry_msgs
     tf2 
@@ -25,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES scout_messenger
-  CATKIN_DEPENDS ugv_sdk scout_msgs
+  CATKIN_DEPENDS ugv_sdk scout_msgs std_srvs
 #   DEPENDS Boost
 )
 
@@ -61,3 +62,4 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 install(DIRECTORY launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
+

@@ -25,6 +25,15 @@
   <!-- Prefer absolute names first to avoid namespace surprises. -->
   <arg name="candidate_scan_topics" default="/scan /unilidar/laserscan unilidar/laserscan unitree_lidar/scan /unitree_lidar/scan"/>
 
+  <!-- Scan bridge sanitization / workaround knobs -->
+  <arg name="scan_bridge_enable_filter" default="true" />
+  <arg name="scan_bridge_min_range_floor" default="0.05" />
+  <arg name="scan_bridge_drop_invalid_to_inf" default="true" />
+  <arg name="scan_bridge_replace_inf" default="false" />
+  <arg name="scan_bridge_inf_epsilon" default="0.01" />
+  <!-- Workaround for time-sync issues: force outgoing /scan stamp to now -->
+  <arg name="scan_bridge_force_now_stamp" default="false" />
+
   <group if="$(arg start_unitree_lidar)">
     <include file="$(arg unitree_lidar_launch)" />
   </group>
@@ -33,6 +42,13 @@
     <param name="input_topics" value="$(arg candidate_scan_topics)"/>
     <param name="output_topic" value="/scan"/>
     <param name="queue_size" value="10"/>
+
+    <param name="enable_filter" value="$(arg scan_bridge_enable_filter)" />
+    <param name="min_range_floor" value="$(arg scan_bridge_min_range_floor)" />
+    <param name="drop_invalid_to_inf" value="$(arg scan_bridge_drop_invalid_to_inf)" />
+    <param name="replace_inf" value="$(arg scan_bridge_replace_inf)" />
+    <param name="inf_epsilon" value="$(arg scan_bridge_inf_epsilon)" />
+    <param name="force_now_stamp" value="$(arg scan_bridge_force_now_stamp)" />
   </node>
 
   <!-- Start the navigation pipeline (this launch includes move_base, amcl, rviz per r300_function) -->
@@ -43,5 +59,6 @@
   </include>
 
 </launch>
+
 
 

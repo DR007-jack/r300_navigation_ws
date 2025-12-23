@@ -1,0 +1,2 @@
+/usr/bin/ar qc /home/amov/r300_navigation_ws/devel/lib/libscout_messenger.a  CMakeFiles/scout_messenger.dir/src/scout_messenger.cpp.o
+/usr/bin/ranlib /home/amov/r300_navigation_ws/devel/lib/libscout_messenger.a

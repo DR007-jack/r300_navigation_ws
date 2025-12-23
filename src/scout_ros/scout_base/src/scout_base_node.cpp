@@ -4,6 +4,8 @@
 #include <sensor_msgs/JointState.h>
 #include <tf/transform_broadcaster.h>
 
+#include <std_srvs/Trigger.h>
+
 // 引入ugv_sdk核心头文件（包含ProtocolVersion定义的头文件）
 #include "ugv_sdk/details/interface/parser_interface.hpp"  // 直接引入ProtocolVersion所在头文件
 #include "ugv_sdk/mobile_robot/scout_robot.hpp"
@@ -14,6 +16,30 @@ using namespace westonrobot;
 
 // 全局机器人对象指针
 std::unique_ptr<ScoutRobot> robot;
+
+static bool HandleClearFaults(std_srvs::Trigger::Request &req,
+                              std_srvs::Trigger::Response &res) {
+  (void)req;
+
+  if (!robot) {
+    res.success = false;
+    res.message = "Robot not initialized";
+    return true;
+  }
+
+  try {
+    // Re-send commanded mode (idempotent) and then request state/fault reset.
+    robot->EnableCommandedMode();
+    robot->ResetRobotState();
+    res.success = true;
+    res.message = "Sent EnableCommandedMode and ResetRobotState";
+  } catch (const std::exception &e) {
+    res.success = false;
+    res.message = std::string("Failed: ") + e.what();
+  }
+
+  return true;
+}
 
 int main(int argc, char **argv) {
   // 初始化ROS节点
@@ -108,6 +134,12 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Expose an explicit fault clear service for higher-level bringup scripts.
+  // NOTE: This does not bypass hardware safety chain (E-Stop, driver lockout, etc.).
+  ros::ServiceServer clear_faults_srv =
+      node.advertiseService("/scout/clear_faults", HandleClearFaults);
+  ROS_INFO("Service ready: /scout/clear_faults (std_srvs/Trigger)");
+
   // 设置ROS订阅器
   messenger.SetupSubscription();
 
@@ -127,4 +159,5 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
 

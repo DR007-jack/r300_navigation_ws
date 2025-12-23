@@ -164,13 +164,26 @@ catkin_install_python(
     scripts/move_base_wait_and_run.py
     scripts/amcl_nomotion_update.py
     scripts/amcl_auto_initialpose.py
+    scripts/auto_clear_faults.py
     scripts/pcd_to_occupancy_grid.py
+    scripts/wait_for_scan.py
+  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# Some launch files execute Python scripts directly as nodes.
+# Installing them as PROGRAMS makes sure they are marked executable and discoverable.
+install(PROGRAMS
+  scripts/wait_for_scan.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
+
+install(DIRECTORY rviz_cfg/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/rviz_cfg
 )
 
 ## Mark executables for installation
@@ -213,5 +226,6 @@ install(DIRECTORY launch/
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
 
 

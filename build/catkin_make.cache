@@ -1,0 +1,2 @@
+point_lio_unilidar-main:r300_bringup:r300_function:scout_ros/scout_base:scout_ros/scout_bringup:scout_ros/scout_description:scout_ros/scout_msgs:ugv_sdk:unilidar_sdk2-main/unitree_lidar_ros/src/unitree_lidar_ros
+-DCATKIN_DEVEL_PREFIX=/home/amov/r300_navigation_ws/devel -DCMAKE_INSTALL_PREFIX=/home/amov/r300_navigation_ws/install -G Unix Makefiles

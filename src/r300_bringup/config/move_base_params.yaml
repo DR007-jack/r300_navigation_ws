@@ -9,7 +9,7 @@ global_costmap:
   update_frequency: 5.0
   publish_frequency: 2.0
   static_map: true
-  transform_tolerance: 1.5
+  transform_tolerance: 5.0
   rolling_window: false
   observation_sources: scan_sensor
   scan_sensor: {sensor_frame: unilidar_lidar, data_type: LaserScan, topic: /scan, marking: true, clearing: true}
@@ -19,7 +19,7 @@ local_costmap:
   robot_base_frame: base_link
   update_frequency: 5.0
   publish_frequency: 2.0
-  transform_tolerance: 1.5
+  transform_tolerance: 5.0
   rolling_window: true
   width: 6.0
   height: 6.0
@@ -43,4 +43,5 @@ DWAPlannerROS:
   path_distance_bias: 32.0
   goal_distance_bias: 24.0
   occdist_scale: 0.01
+
 

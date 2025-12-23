@@ -23,9 +23,10 @@
     <!-- Laserscan will be published on the topic configured in bringup_params.yaml (default: /scan) -->
   </node>
 
-  <!-- Static transform from base_link to lidar frame (adjust values to match your installation) -->
-  <node pkg="tf" type="static_transform_publisher" name="lidar_to_base"
-        args="0.20 0.0 0.30 0 0 0 base_link unilidar_lidar 100"/>
+  <!-- Static transform from base_link to lidar frame (adjust values to match your installation)
+   Use tf2_ros so it publishes latched on /tf_static. -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="lidar_to_base"
+    args="0.20 0.0 0.30 0 0 0 base_link unilidar_lidar"/>
 
   <!-- Optional components (uncomment when ready) -->
   <!-- Map server (if you have a map .yaml and .pgm):
@@ -48,4 +49,5 @@
   </node>
 
 </launch>
+
 
